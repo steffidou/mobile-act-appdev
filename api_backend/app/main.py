@@ -1,8 +1,7 @@
 from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
 from app.database import SessionLocal, engine, Base
-import crud, schemas
-
+from app import crud, schemas 
 Base.metadata.create_all(bind=engine)
     
 app = FastAPI()
