@@ -18,7 +18,7 @@ const App = () => {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editText, setEditText] = useState<string>("");
 
-  const API_URL = "https://todo-app-w-fastapi.onrender.com/todos/";
+  const API_URL = "https://mobile-act-appdev.onrender.com/todos/";
 
   // Fetch tasks from backend on mount
   useEffect(() => {
