@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
 from app.database import SessionLocal, engine, Base
 from app import crud, schemas
-from app.models import todos
+from app.models import Todo
 
 Base.metadata.create_all(bind=engine)
     
