@@ -1,6 +1,6 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useState, useEffect } from "react";
-import { View, Text, TextInput, Button, FlatList, TouchableOpacity, Switch } from "react-native";
-import { StyleSheet } from "react-native";
+import { View, Text, TextInput, FlatList, TouchableOpacity, Switch, StyleSheet } from "react-native";
 
 interface Task {
   id: number;
@@ -14,13 +14,27 @@ const App = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [filter, setFilter] = useState<Filter>("all");
   const [taskInput, setTaskInput] = useState<string>("");
-  const [darkMode, setDarkMode] = useState<boolean>(() => localStorage.getItem("darkMode") === "true");
+  const [darkMode, setDarkMode] = useState<boolean>(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editText, setEditText] = useState<string>("");
 
   const API_URL = "https://mobile-act-appdev.onrender.com/todos/";
 
-  // Fetch tasks from backend on mount
+  useEffect(() => {
+    const loadDarkMode = async () => {
+      try {
+        const storedValue = await AsyncStorage.getItem("darkMode");
+        if (storedValue !== null) {
+          setDarkMode(storedValue === "true");
+        }
+      } catch (e) {
+        console.error("Failed to load dark mode:", e);
+      }
+    };
+
+    loadDarkMode();
+  }, []);
+
   useEffect(() => {
     fetch(API_URL)
       .then((res) => res.json())
@@ -99,33 +113,59 @@ const App = () => {
     return true;
   });
 
+  const textColor = { color: darkMode ? "#fff" : "#000" };
+  const backgroundColor = darkMode ? "#555" : "#ddd";
+
   return (
     <View style={[styles.container, darkMode && styles.darkContainer]}>
-      <Text style={styles.title}>React Native TODO App</Text>
+      <Text style={[styles.title, textColor]}>To-do List App</Text>
 
       <View style={styles.switchContainer}>
-        <Text>{darkMode ? "🌙 Dark Mode" : "☀️ Light Mode"}</Text>
-        <Switch value={darkMode} onValueChange={() => setDarkMode(!darkMode)} />
+        <Text style={textColor}>{darkMode ? "🌙 Dark Mode" : "☀️ Light Mode"}</Text>
+        <Switch
+          value={darkMode}
+          onValueChange={async () => {
+            const newValue = !darkMode;
+            setDarkMode(newValue);
+            await AsyncStorage.setItem("darkMode", newValue.toString());
+          }}
+        />
       </View>
 
       <TextInput
-        style={styles.input}
+        style={[styles.input, textColor, { borderColor: darkMode ? "#aaa" : "#ccc" }]}
         placeholder="Add a new task"
+        placeholderTextColor={darkMode ? "#aaa" : "#888"}
         value={taskInput}
         onChangeText={setTaskInput}
       />
-      <Button title="Add Task" onPress={addTask} />
+
+      <TouchableOpacity
+        style={[styles.customButton, { backgroundColor }]}
+        onPress={addTask}
+      >
+        <Text style={textColor}>Add Task</Text>
+      </TouchableOpacity>
 
       <View style={styles.filterButtons}>
-        <TouchableOpacity onPress={() => setFilter("all")} style={styles.filterButton}>
-          <Text>All ({tasks.length})</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => setFilter("completed")} style={styles.filterButton}>
-          <Text>Completed ({tasks.filter((task) => task.completed).length})</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => setFilter("pending")} style={styles.filterButton}>
-          <Text>Pending ({tasks.filter((task) => !task.completed).length})</Text>
-        </TouchableOpacity>
+        {["all", "completed", "pending"].map((f) => (
+          <TouchableOpacity
+            key={f}
+            onPress={() => setFilter(f as Filter)}
+            style={[styles.filterButton, { backgroundColor }]}
+          >
+            <Text style={textColor}>
+              {f.charAt(0).toUpperCase() + f.slice(1)} (
+              {
+                f === "completed"
+                  ? tasks.filter((t) => t.completed).length
+                  : f === "pending"
+                  ? tasks.filter((t) => !t.completed).length
+                  : tasks.length
+              })
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
       <FlatList
@@ -143,17 +183,36 @@ const App = () => {
                 onChangeText={setEditText}
               />
             ) : (
-              <Text style={item.completed ? styles.completedTask : undefined}>{item.title}</Text>
+              <Text
+                style={[
+                  item.completed ? styles.completedTask : undefined,
+                  textColor, // This applies the correct text color
+                ]}
+              >
+                {item.title}
+              </Text>
             )}
             <View style={styles.taskActions}>
               {editingId === item.id ? (
-                <Button title="💾" onPress={() => saveEdit(item.id)} />
+                <TouchableOpacity onPress={() => saveEdit(item.id)} style={styles.actionButton}>
+                  <Text style={textColor}>💾</Text>
+                </TouchableOpacity>
               ) : (
                 !item.completed && (
-                  <Button title="✏️" onPress={() => enableEditing(item.id, item.title)} />
+                  <TouchableOpacity
+                    onPress={() => enableEditing(item.id, item.title)}
+                    style={styles.actionButton}
+                  >
+                    <Text style={textColor}>✏️</Text>
+                  </TouchableOpacity>
                 )
               )}
-              <Button title="❌" onPress={() => deleteTask(item.id)} />
+              <TouchableOpacity
+                onPress={() => deleteTask(item.id)}
+                style={styles.actionButton}
+              >
+                <Text style={textColor}>❌</Text>
+              </TouchableOpacity>
             </View>
           </View>
         )}
@@ -173,7 +232,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#333",
   },
   title: {
-    fontSize: 24,
+    fontSize: 25,
+    padding: 50,
     fontWeight: "bold",
     marginBottom: 20,
     textAlign: "center",
@@ -184,11 +244,16 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
+    borderWidth: 2,
     padding: 10,
     marginBottom: 20,
     borderRadius: 5,
+  },
+  customButton: {
+    alignItems: "center",
+    padding: 12,
+    borderRadius: 5,
+    marginBottom: 20,
   },
   filterButtons: {
     flexDirection: "row",
@@ -197,7 +262,7 @@ const styles = StyleSheet.create({
   },
   filterButton: {
     padding: 10,
-    backgroundColor: "#ddd",
+    margin: 5,
     borderRadius: 5,
   },
   taskItem: {
@@ -216,6 +281,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-around",
     alignItems: "center",
+  },
+  actionButton: {
+    padding: 5,
   },
   editInput: {
     borderWidth: 1,
